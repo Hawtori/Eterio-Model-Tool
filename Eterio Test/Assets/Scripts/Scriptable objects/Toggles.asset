@@ -13,3 +13,4 @@ MonoBehaviour:
   m_Name: Toggles
   m_EditorClassIdentifier: 
   snapToEdge: 0
+  pointOffset: 0.25

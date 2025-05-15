@@ -6,4 +6,6 @@ using UnityEngine;
 public class Toggles : ScriptableObject
 {
     public bool snapToEdge = false;
+
+    public float pointOffset;
 }

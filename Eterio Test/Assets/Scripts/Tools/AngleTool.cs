@@ -20,7 +20,12 @@ public class AngleTool : MonoBehaviour
 
     private List<Transform> selectedPoints = new List<Transform>();
 
+    public Button pointSelectbtn;
+    public Button anglebtn;
+
     public Toggles toggles;
+
+    private 
 
     void Update()
     {
@@ -31,7 +36,7 @@ public class AngleTool : MonoBehaviour
             {
                 if (selectedPoints.Count < 3)
                 {
-                    GameObject point = Instantiate(pointMarkerPrefab, hit.point, Quaternion.identity);
+                    GameObject point = Instantiate(pointMarkerPrefab, hit.point + hit.normal * toggles.pointOffset, Quaternion.identity, hit.transform);
                     selectedPoints.Add(point.transform);
                     if (selectedPoints.Count == 3)
                     {
@@ -68,6 +73,9 @@ public class AngleTool : MonoBehaviour
 
         float angle = Vector3.Angle(BA, BC);
 
+        pointSelectbtn.gameObject.SetActive(true);
+        anglebtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(-50f, 115f);
+
         lineAB.gameObject.SetActive(true);
         lineCB.gameObject.SetActive(true);
         lineAB.SetPosition(0, B);
@@ -82,7 +90,7 @@ public class AngleTool : MonoBehaviour
 
         angleText.gameObject.SetActive(true);
         angleText.text = $"{angle:F1}°";
-        angleText.transform.position = B + Vector3.up * 0.4f;
+        angleText.transform.position = B + Vector3.forward * 0.4f;
     }
 
     void DrawArcLine(Vector3 center, Vector3 dir1, Vector3 dir2, float angle)
@@ -161,5 +169,9 @@ public class AngleTool : MonoBehaviour
         arc.gameObject.SetActive(false);
         arcMeshFilter.mesh = null;
         angleText.text = "";
+
+        pointSelectbtn.gameObject.SetActive(false);
+        anglebtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(-50f, 62f);
+
     }
 }  

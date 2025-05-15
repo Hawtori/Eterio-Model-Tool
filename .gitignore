@@ -10,6 +10,12 @@
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 
+obj/
+logs/
+Library/
+Temp/
+Build/
+
 # MemoryCaptures can get excessive in size.
 # They also could contain extremely sensitive data
 /[Mm]emoryCaptures/
@@ -71,3 +77,7 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 /Eterio Test/Library
+/Eterio Test/UserSettings
+/Eterio Test/UserSettings
+/Eterio Test/Logs
+/Eterio Test/Logs
