@@ -25,35 +25,38 @@ public class AngleTool : MonoBehaviour
 
     public Toggles toggles;
 
-    private 
+    private void Start()
+    {
+        toggles.ChangeState("panning");
+    }
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0))
+        // if we are checking for an angle currently
+        if(toggles.GetCurrentState() == Toggles.States.angle)
         {
-            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit))
+            if (Input.GetMouseButtonDown(0))
             {
-                if (selectedPoints.Count < 3)
+                Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+                if (Physics.Raycast(ray, out RaycastHit hit))
                 {
-                    GameObject point = Instantiate(pointMarkerPrefab, hit.point + hit.normal * toggles.pointOffset, Quaternion.identity, hit.transform);
-                    selectedPoints.Add(point.transform);
-                    if (selectedPoints.Count == 3)
+                    if (selectedPoints.Count < 3)
                     {
-                        UpdateAngleDisplay();
+                        GameObject point = Instantiate(pointMarkerPrefab, hit.point + hit.normal * toggles.pointOffset, Quaternion.identity, hit.transform);
+                        selectedPoints.Add(point.transform);
+                        if (selectedPoints.Count == 3)
+                        {
+                            UpdateAngleDisplay();
+                        }
                     }
                 }
             }
         }
 
+        // update points if there are 3 active
         if (selectedPoints.Count == 3)
         {
             UpdateAngleDisplay();
-        }
-
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            ClearPoints();
         }
 
         if (Input.GetKeyDown(KeyCode.S))
@@ -90,7 +93,12 @@ public class AngleTool : MonoBehaviour
 
         angleText.gameObject.SetActive(true);
         angleText.text = $"{angle:F1}°";
-        angleText.transform.position = B + Vector3.forward * 0.4f;
+
+        Vector3 arcMidDirection = ((BA + BC) * 0.5f).normalized;
+        Vector3 arcNormal = Vector3.Cross(BA, BC).normalized;
+        Vector3 offset = arcMidDirection * 0.3f + arcNormal * 0.05f;
+
+        angleText.transform.position = B + offset;
     }
 
     void DrawArcLine(Vector3 center, Vector3 dir1, Vector3 dir2, float angle)
@@ -113,42 +121,46 @@ public class AngleTool : MonoBehaviour
     void DrawArc(Vector3 center, Vector3 dir1, Vector3 dir2, float angle)
     {
         Vector3 normal = Vector3.Cross(dir1, dir2).normalized;
+
+        Quaternion GetRotation(float a) => Quaternion.AngleAxis(a, normal);
+
         List<Vector3> vertices = new List<Vector3>();
         List<int> triangles = new List<int>();
-
-        vertices.Add(center); 
 
         for (int i = 0; i <= arcSegments; i++)
         {
             float t = (float)i / arcSegments;
             float currentAngle = t * angle;
 
-            Quaternion rot = Quaternion.AngleAxis(currentAngle, normal);
-            Vector3 point = center + rot * dir1.normalized * arcRadius;
-
+            Vector3 point = center + GetRotation(currentAngle) * dir1.normalized * arcRadius;
             vertices.Add(point);
         }
 
+        // Check if the triangle is back-facing to the camera
+        bool flipTriangles = Vector3.Dot(normal, Camera.main.transform.forward) > 0;
+
         for (int i = 1; i < vertices.Count - 1; i++)
         {
-            triangles.Add(0);
-            triangles.Add(i);
-            triangles.Add(i + 1);
+            if (flipTriangles)
+            {
+                triangles.Add(0);
+                triangles.Add(i + 1);
+                triangles.Add(i);
+            }
+            else
+            {
+                triangles.Add(0);
+                triangles.Add(i);
+                triangles.Add(i + 1);
+            }
         }
 
         Mesh arcMesh = new Mesh();
         arcMesh.SetVertices(vertices);
         arcMesh.SetTriangles(triangles, 0);
         arcMesh.RecalculateNormals();
-
-        if (Vector3.Dot(Vector3.Cross(dir1, dir2), mainCamera.transform.forward) > 0)
-        {
-
-        }
-
         arcMeshFilter.mesh = arcMesh;
     }
-
 
     public void ClearPoints()
     {
@@ -170,8 +182,11 @@ public class AngleTool : MonoBehaviour
         arcMeshFilter.mesh = null;
         angleText.text = "";
 
+
         pointSelectbtn.gameObject.SetActive(false);
         anglebtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(-50f, 62f);
 
     }
+
+    public int GetNumberOfPoints() => selectedPoints.Count;
 }  

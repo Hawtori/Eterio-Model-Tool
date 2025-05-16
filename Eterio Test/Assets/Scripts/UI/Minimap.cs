@@ -19,8 +19,12 @@ public class Minimap : MonoBehaviour, IPointerClickHandler, IBeginDragHandler,ID
     private Bounds worldBounds;
 
     [Header("Movement")]
-    public float cameraHeight = 2f;
+    public float cameraHeight = 4.5f;
     public float smoothSpeed = 5f;
+
+    [Header("Zoom")]
+    public float minFOV = 15f;
+    public float maxFOV = 60f;
 
     private Vector3 targetPos;
     private bool moving = false;
@@ -61,7 +65,7 @@ public class Minimap : MonoBehaviour, IPointerClickHandler, IBeginDragHandler,ID
     {
         UpdateViewRect();
 
-        if(moving)
+        if (moving)
         {
             mainCamera.transform.position = Vector3.Lerp(mainCamera.transform.position, targetPos, Time.deltaTime * smoothSpeed);
 
@@ -71,69 +75,54 @@ public class Minimap : MonoBehaviour, IPointerClickHandler, IBeginDragHandler,ID
 
     private void UpdateViewRect()
     {
-        Vector3[] frustumCorners = new Vector3[4];
-        Plane ground = new Plane(Vector3.up, Vector3.zero);
+        Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
+        Vector3[] worldCorners = new Vector3[4];
+        Vector2[] minimapCorners = new Vector2[4];
 
-        float maxViewDistance = 1000f;
-        Ray[] rays = new Ray[]
+        Vector3[] viewportCorners = new Vector3[]
         {
-            mainCamera.ViewportPointToRay(new Vector3(0, 0, 0)),
-            mainCamera.ViewportPointToRay(new Vector3(0, 1, 0)), 
-            mainCamera.ViewportPointToRay(new Vector3(1, 1, 0)), 
-            mainCamera.ViewportPointToRay(new Vector3(1, 0, 0))  
+        new Vector3(0, 0), // Bottom-left
+        new Vector3(0, 1), // Top-left
+        new Vector3(1, 1), // Top-right
+        new Vector3(1, 0)  // Bottom-right
         };
 
         for (int i = 0; i < 4; i++)
         {
-            if (ground.Raycast(rays[i], out float enter))
-                frustumCorners[i] = rays[i].GetPoint(enter);
+            Ray ray = mainCamera.ViewportPointToRay(viewportCorners[i]);
+            if (groundPlane.Raycast(ray, out float enter))
+            {
+                Vector3 hitPoint = ray.GetPoint(enter);
+                worldCorners[i] = hitPoint;
+                minimapCorners[i] = WorldToMinimapLocal(hitPoint);
+            }
             else
-                frustumCorners[i] = mainCamera.transform.position; // fallback
+            {
+                // fallback: use camera position
+                Vector3 fallback = mainCamera.transform.position;
+                worldCorners[i] = fallback;
+                minimapCorners[i] = WorldToMinimapLocal(fallback);
+            }
         }
 
-        Vector2[] rectPoints = new Vector2[4];
-        for (int i = 0; i < 4; i++)
+        // Calculate bounding box
+        Vector2 min = minimapCorners[0];
+        Vector2 max = minimapCorners[0];
+
+        for (int i = 1; i < 4; i++)
         {
-            Vector3 worldPoint = frustumCorners[i];
-            Vector3 localPoint = WorldToMinimapLocal(worldPoint);
-            rectPoints[i] = localPoint;
+            min = Vector2.Min(min, minimapCorners[i]);
+            max = Vector2.Max(max, minimapCorners[i]);
         }
 
-        Vector2 min = rectPoints[0];
-        Vector2 max = rectPoints[0];
-        foreach (Vector2 v in rectPoints)
-        {
-            min = Vector2.Min(min, v);
-            max = Vector2.Max(max, v);
-        }
-
-        Vector2 center = (min + max) / 2;
         Vector2 size = max - min;
-
-        // Clamp size to not exceed minimap
-        size = Vector2.Min(size, minimapRect.rect.size);
+        Vector2 center = (min + max) * 0.5f;
 
         viewRect.anchoredPosition = center;
         viewRect.sizeDelta = size;
-        //Vector3 camPos = mainCamera.transform.position;
-        //float camSize = cameraHeight;
-
-        //Vector3 min = worldBounds.min;
-        //Vector3 max = worldBounds.max;
-
-        //float mapWidth = max.x - min.x;
-        //float mapHeight = max.z - min.z;
-
-        //float percentX = (camPos.x - min.x) / mapWidth;
-        //float percentY = (camPos.z - min.z) / mapHeight;
-
-        //Vector2 anchoredPos = new Vector2(percentX * minimapRect.rect.width, percentY * minimapRect.rect.height);
-        //viewRect.anchoredPosition = anchoredPos;
-
-        //float viewWidth = minimapRect.rect.width * (camSize / mapWidth);
-        //float viewHeight = minimapRect.rect.height * (camSize / mapHeight);
-        //viewRect.sizeDelta = new Vector2(viewWidth, viewHeight);
     }
+
+
 
     Vector2 WorldToMinimapLocal(Vector3 worldPoint)
     {
@@ -186,26 +175,9 @@ public class Minimap : MonoBehaviour, IPointerClickHandler, IBeginDragHandler,ID
 
     public void OnScroll(PointerEventData eventData)
     {
-        cameraHeight = Mathf.Clamp(
-        cameraHeight - eventData.scrollDelta.y,
-        5f,
-        CalculateMaxCameraHeightToStayWithinBounds()
-        );
-
-        Vector3 camPos = mainCamera.transform.position;
-        mainCamera.transform.position = new Vector3(camPos.x, cameraHeight, camPos.z);
+        float newFOV = mainCamera.fieldOfView - eventData.scrollDelta.y * 2f;
+        mainCamera.fieldOfView = Mathf.Clamp(newFOV, minFOV, maxFOV);
     }
 
-    float CalculateMaxCameraHeightToStayWithinBounds()
-    {
-        float mapWidth = worldBounds.size.x;
-        float mapHeight = worldBounds.size.z;
-        float camFOV = mainCamera.fieldOfView;
-
-        float maxSize = Mathf.Min(mapWidth, mapHeight) * 0.9f;
-
-        float maxHeight = maxSize / (2f * Mathf.Tan(Mathf.Deg2Rad * camFOV / 2f));
-        return maxHeight;
-    }
 
 }
